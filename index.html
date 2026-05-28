@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flowly</title>
+
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header></header>
+
+  <!-- Calendar -->
+  <div class="page active" id="page-calendar">
+    <div class="card">
+      <div class="cal-nav">
+        <button id="prev-month" aria-label="Previous month">&larr;</button>
+        <span class="month-label" id="month-label"></span>
+        <button id="next-month" aria-label="Next month">&rarr;</button>
+      </div>
+      <div class="cal-grid" id="cal-grid">
+        <span class="day-name">M</span><span class="day-name">T</span><span class="day-name">W</span>
+        <span class="day-name">T</span><span class="day-name">F</span><span class="day-name">S</span><span class="day-name">S</span>
+      </div>
+    </div>
+    <div class="cal-legend">
+      <span><span class="dot" style="background:var(--rose-light);"></span> Period</span>
+      <span class="sep"></span>
+      <span><span class="dot" style="background:var(--rose-pred);"></span> Predicted</span>
+      <span class="sep"></span>
+      <span><span class="dot" style="background:var(--primary-light);border:1px solid var(--border);"></span> Today</span>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="page" id="page-log">
+    <div class="card">
+      <h2>Log a Period</h2>
+      <div style="background:var(--primary-light);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:0.78rem;color:var(--text);line-height:1.5;">
+        Select a start and end date, then save. You can also tap a day on the <strong>Calendar</strong> tab to pre-fill the dates.
+      </div>
+      <form id="period-form" autocomplete="off">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="start-date">Start date</label>
+            <input type="date" id="start-date" required>
+          </div>
+          <div class="form-group">
+            <label for="end-date">End date</label>
+            <input type="date" id="end-date" required>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="notes">Notes (optional)</label>
+          <textarea id="notes" placeholder="Symptoms, mood, anything..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="cancel-edit" style="display:none;">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="page" id="page-stats">
+    <div class="card">
+      <h2>Predictions &amp; Statistics</h2>
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="value" id="stat-avg-cycle">--</div>
+          <div class="label">Avg Cycle</div>
+        </div>
+        <div class="stat">
+          <div class="value" id="stat-avg-period">--</div>
+          <div class="label">Avg Period</div>
+        </div>
+        <div class="stat">
+          <div class="value" id="stat-logged">0</div>
+          <div class="label">Logged</div>
+        </div>
+        <div class="stat">
+          <div class="value" id="stat-predicted-cycle">--</div>
+          <div class="label">Predicted Cycle</div>
+        </div>
+      </div>
+      <div id="next-period-block"></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="page" id="page-history">
+    <div class="card">
+      <h2>Past Periods</h2>
+      <div id="periods-list"></div>
+    </div>
+  </div>
+
+  <!-- Data -->
+  <div class="page" id="page-data">
+    <div class="card">
+      <h2>Your Data</h2>
+
+      <div class="data-section">
+        <h3>Export</h3>
+        <p>Download or copy all your data as JSON so you can back it up or transfer it.</p>
+        <div class="data-actions">
+          <button class="data-btn" id="copy-data">
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy to Clipboard
+          </button>
+          <button class="data-btn" id="download-data">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download .json
+          </button>
+        </div>
+      </div>
+
+      <hr class="data-divider">
+
+      <div class="data-section">
+        <h3>Import</h3>
+        <p>Restore data from a backup. This will replace all current data.</p>
+        <label for="import-file" class="data-btn import" style="display:inline-flex;margin-bottom:8px;">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Choose File
+        </label>
+        <input type="file" id="import-file" class="hidden-input" accept=".json,application/json">
+        <div style="margin-top:4px;font-size:0.78rem;color:var(--text-muted);">
+          Or paste JSON below:
+        </div>
+        <textarea class="import-area" id="import-text" placeholder='[{"id":"...", "startDate":"2026-01-01", ...}]'></textarea>
+        <button class="data-btn import" id="import-btn">
+          <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Import
+        </button>
+      </div>
+
+
+      <div class="dev-panel" id="dev-panel">
+        <h3>Flags &amp; Storage</h3>
+        <div class="dev-row">
+          <span class="dev-label">Intro seen</span>
+          <span class="dev-status" id="dev-intro-status">true</span>
+          <button class="dev-btn-sm" id="dev-reset-intro">Reset</button>
+        </div>
+        <div class="dev-row">
+          <span class="dev-label">All period data</span>
+          <span class="dev-status" id="dev-data-count">0 entries</span>
+          <button class="dev-btn-sm danger" id="dev-clear-data">Clear</button>
+        </div>
+        <hr class="data-divider">
+        <button class="dev-btn-full danger" id="dev-factory-reset">Factory Reset — erase everything</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab Bar -->
+<nav class="tab-bar" aria-label="Navigation">
+  <div class="tab-bar-inner">
+    <button class="tab-btn active" data-tab="calendar">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+      </span>
+      Calendar
+    </button>
+    <button class="tab-btn" data-tab="log">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      </span>
+      Log
+    </button>
+    <button class="tab-btn" data-tab="stats">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="18" y1="20" x2="18" y2="13"/></svg>
+      </span>
+      Stats
+    </button>
+    <button class="tab-btn" data-tab="history">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="16" y2="18"/></svg>
+      </span>
+      History
+    </button>
+    <button class="tab-btn" data-tab="data" id="tab-data">
+      <span class="tab-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </span>
+      Data
+      <span class="tab-bar-indicator"></span>
+    </button>
+  </div>
+</nav>
+
+<div class="intro-overlay" id="intro-overlay">
+  <div class="intro-card">
+    <h2>Flowly</h2>
+    <div class="tagline">a privacy focused period tracking app.</div>
+    <p>Your data is stored entirely on this device. Nothing is sent anywhere — no servers, no cloud, no accounts.</p>
+    <div class="privacy-note">
+      <strong>You're in control.</strong> Use the <strong>Data</strong> tab to export or import all your information as a JSON file. Copy it to your clipboard, download it, or save it anywhere you like. You can restore it at any time — your data belongs to you.
+    </div>
+    <div class="intro-actions">
+      <button class="btn btn-ghost" id="intro-skip">Skip</button>
+      <button class="btn btn-primary" id="intro-start">Get Started</button>
+    </div>
+  </div>
+</div>
+
+<div class="tutorial" id="tutorial">
+  <div class="tutorial-card">
+    <div class="tutorial-step" id="tutorial-step">1 / 5</div>
+    <div class="tutorial-title" id="tutorial-title"></div>
+    <div class="tutorial-desc" id="tutorial-desc"></div>
+    <div class="tutorial-dots" id="tutorial-dots"></div>
+    <div class="tutorial-actions">
+      <button class="btn btn-ghost" id="tutorial-skip">Skip</button>
+      <div class="tutorial-nav">
+        <button class="btn btn-ghost" id="tutorial-back" style="display:none;">Back</button>
+        <button class="btn btn-primary" id="tutorial-next">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
