@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flowly</title>
 
-<link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="app">
@@ -137,6 +140,20 @@
         </button>
       </div>
 
+
+      <hr class="data-divider">
+
+      <div class="data-section" id="install-section" style="display:none;">
+        <h3>Install App</h3>
+        <p>Add Flowly to your home screen for a faster, offline-ready experience.</p>
+        <button class="data-btn" id="install-btn">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="3" x2="12" y2="15"/><polyline points="8 11 12 15 16 11"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          Install App
+        </button>
+        <p id="ios-install-hint" style="display:none;font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
+          Tap the <strong>Share</strong> button <span style="font-size:1.1rem;">⎙</span> in Safari, then scroll down and tap <strong>Add to Home Screen</strong>.
+        </p>
+      </div>
 
       <div class="dev-panel" id="dev-panel">
         <h3>Flags &amp; Storage</h3>

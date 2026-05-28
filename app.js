@@ -499,6 +499,43 @@
     document.body.removeChild(ta);
   }
 
+  // ---- PWA Install ----
+  let installPrompt = null;
+
+  function setupInstall() {
+    const section = document.getElementById('install-section');
+    const btn = document.getElementById('install-btn');
+    const iosHint = document.getElementById('ios-install-hint');
+
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+    if (isStandalone) return;
+
+    if (isIOS) {
+      section.style.display = '';
+      iosHint.style.display = '';
+      return;
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      installPrompt = e;
+      section.style.display = '';
+    });
+
+    btn.addEventListener('click', async () => {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      const result = await installPrompt.userChoice;
+      if (result.outcome === 'accepted') {
+        section.style.display = 'none';
+        showToast('App installed!');
+      }
+      installPrompt = null;
+    });
+  }
+
   // ---- Toast ----
   let toastTimer = null;
   function showToast(msg) {
@@ -694,6 +731,10 @@
     setupForm();
     setupDataPage();
     setupDeveloper();
+    setupInstall();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
     setupIntro();
     switchTab('calendar');
   }
