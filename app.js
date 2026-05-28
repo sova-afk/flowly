@@ -506,22 +506,27 @@
     const section = document.getElementById('install-section');
     const btn = document.getElementById('install-btn');
     const iosHint = document.getElementById('ios-install-hint');
+    const androidHint = document.getElementById('android-install-hint');
 
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
     if (isStandalone) return;
 
+    // Show section for everyone immediately
+    section.style.display = '';
+
     if (isIOS) {
-      section.style.display = '';
       iosHint.style.display = '';
       return;
     }
 
+    // Try native prompt on Android/Chrome
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       installPrompt = e;
-      section.style.display = '';
+      btn.style.display = '';
+      androidHint.style.display = 'none';
     });
 
     btn.addEventListener('click', async () => {
@@ -534,6 +539,14 @@
       }
       installPrompt = null;
     });
+
+    // If native prompt doesn't fire within 3s, show manual steps
+    setTimeout(() => {
+      if (!installPrompt) {
+        btn.style.display = 'none';
+        androidHint.style.display = '';
+      }
+    }, 3000);
   }
 
   // ---- Toast ----
