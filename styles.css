@@ -21,6 +21,7 @@ body {
   color: var(--text);
   line-height: 1.5;
   padding: 20px 20px calc(var(--tab-height) + 20px);
+  padding-bottom: calc(var(--tab-height) + 20px + env(safe-area-inset-bottom, 0px));
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -46,9 +47,10 @@ h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
   display: flex; justify-content: center;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: 0 12px;
+  padding: 0 calc(12px + env(safe-area-inset-right, 0px)) 0 calc(12px + env(safe-area-inset-left, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 50;
-  height: var(--tab-height);
+  height: calc(var(--tab-height) + env(safe-area-inset-bottom, 0px));
 }
 .tab-bar-inner {
   display: flex; max-width: 480px; width: 100%;
@@ -396,7 +398,7 @@ textarea.import-area:focus { outline: none; border-color: var(--primary); }
 
 /* ---- Toast ---- */
 .toast {
-  position: fixed; bottom: calc(var(--tab-height) + 16px); left: 50%;
+  position: fixed; bottom: calc(var(--tab-height) + 16px + env(safe-area-inset-bottom, 0px)); left: 50%;
   transform: translateX(-50%);
   background: var(--text); color: white; padding: 10px 20px;
   border-radius: 8px; font-size: 0.85rem; opacity: 0;
