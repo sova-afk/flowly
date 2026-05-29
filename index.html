@@ -16,6 +16,7 @@
 
   <!-- Calendar -->
   <div class="page active" id="page-calendar">
+    <h2 class="page-heading" id="cal-heading">Your Period Calendar</h2>
     <div class="card">
       <div class="cal-nav">
         <button id="prev-month" aria-label="Previous month">&larr;</button>
@@ -26,17 +27,18 @@
         <span class="day-name">M</span><span class="day-name">T</span><span class="day-name">W</span>
         <span class="day-name">T</span><span class="day-name">F</span><span class="day-name">S</span><span class="day-name">S</span>
       </div>
+      <div class="cal-legend">
+        <span><span class="dot" style="background:var(--rose-light);"></span> Period</span>
+        <span class="sep"></span>
+        <span><span class="dot" style="background:var(--rose-pred);"></span> Predicted</span>
+        <span class="sep"></span>
+        <span><span class="dot" style="background:var(--ovulation);"></span> Ovulation</span>
+        <span class="sep"></span>
+        <span><span class="dot" style="background:var(--primary-light);border:1px solid var(--border);"></span> Today</span>
+      </div>
     </div>
-    <div class="cal-legend">
-      <span><span class="dot" style="background:var(--rose-light);"></span> Period</span>
-      <span class="sep"></span>
-      <span><span class="dot" style="background:var(--rose-pred);"></span> Predicted</span>
-      <span class="sep"></span>
-      <span><span class="dot" style="background:var(--ovulation);"></span> Ovulation</span>
-      <span class="sep"></span>
-      <span><span class="dot" style="background:var(--primary-light);border:1px solid var(--border);"></span> Today</span>
-    </div>
-    <div id="phase-info"></div>
+    <div id="phase-info" class="card phase-card" style="display:none;"></div>
+    <div id="calendar-stats" class="card stats-mini" style="display:none;"></div>
   </div>
 
   <!-- Log -->
@@ -67,32 +69,6 @@
           <button type="submit" class="btn btn-primary" id="save-btn">Save</button>
         </div>
       </form>
-    </div>
-  </div>
-
-  <!-- Stats -->
-  <div class="page" id="page-stats">
-    <div class="card">
-      <h2>Predictions &amp; Statistics</h2>
-      <div class="stats-grid">
-        <div class="stat">
-          <div class="value" id="stat-avg-cycle">--</div>
-          <div class="label">Avg Cycle</div>
-        </div>
-        <div class="stat">
-          <div class="value" id="stat-avg-period">--</div>
-          <div class="label">Avg Period</div>
-        </div>
-        <div class="stat">
-          <div class="value" id="stat-logged">0</div>
-          <div class="label">Logged</div>
-        </div>
-        <div class="stat">
-          <div class="value" id="stat-predicted-cycle">--</div>
-          <div class="label">Predicted Cycle</div>
-        </div>
-      </div>
-      <div id="next-period-block"></div>
     </div>
   </div>
 
@@ -196,12 +172,6 @@
       </span>
       Log
     </button>
-    <button class="tab-btn" data-tab="stats">
-      <span class="tab-icon">
-        <svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="18" y1="20" x2="18" y2="13"/></svg>
-      </span>
-      Stats
-    </button>
     <button class="tab-btn" data-tab="history">
       <span class="tab-icon">
         <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="16" y2="18"/></svg>
@@ -217,6 +187,40 @@
     </button>
   </div>
 </nav>
+
+<div class="intro-overlay" id="update-popup">
+  <div class="intro-card">
+    <h2>Update Available</h2>
+    <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;margin-bottom:16px;">
+      A new version of Flowly is available (<span id="update-version"></span>). Tap below to see what&rsquo;s new.
+    </p>
+    <div class="intro-actions">
+      <button class="btn btn-ghost" id="update-dismiss">Later</button>
+      <button class="btn btn-primary" id="update-go">View Update</button>
+    </div>
+  </div>
+</div>
+
+<div class="intro-overlay" id="phase-popup">
+  <div class="intro-card phase-popup-card">
+    <h2 style="font-size:1rem;margin-bottom:12px;">All Phases</h2>
+    <div id="phase-popup-body"></div>
+    <div class="intro-actions" style="margin-top:12px;">
+      <button class="btn btn-primary" id="phase-popup-close">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="intro-overlay" id="name-overlay">
+  <div class="intro-card">
+    <h2 id="name-heading">Hey, I didn&rsquo;t catch your name</h2>
+    <p>What would you like me to call you?</p>
+    <input type="text" id="name-input" placeholder="Your name&hellip;" maxlength="30" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:1rem;font-family:inherit;background:var(--bg);color:var(--text);margin-bottom:16px;box-sizing:border-box;">
+    <div class="intro-actions">
+      <button class="btn btn-primary" id="name-continue">Continue</button>
+    </div>
+  </div>
+</div>
 
 <div class="intro-overlay" id="intro-overlay">
   <div class="intro-card">

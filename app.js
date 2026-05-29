@@ -3,6 +3,7 @@
 
   const DB_NAME = 'flowly';
   const STORE_NAME = 'periods';
+  const APP_VERSION = '1.0.0';
   let dbCache = [];
   let dbReady = false;
 
@@ -201,16 +202,51 @@
     return { predPeriodSet, ovulationSet };
   }
 
+  const phaseOrder = ['menstrual', 'follicular', 'ovulation', 'luteal'];
+
+  const phaseData = {
+    menstrual: {
+      label: 'You are in the Menstrual Phase',
+      desc: 'Your period has started. The body is shedding the uterine lining, which typically lasts 3\u20137 days.',
+      mood: 'You may feel tired, low on energy, or more emotional than usual. Rest when you need to and prioritise comfort.',
+      tip: 'Drink plenty of water to stay hydrated and help reduce bloating.'
+    },
+    follicular: {
+      label: 'You are in the Follicular Phase',
+      desc: 'Energy is rising as oestrogen levels increase. This phase lasts from the end of your period until ovulation.',
+      mood: 'A great time for new beginnings, social activities, and creative projects. Your mood and confidence are lifting.',
+      tip: 'Stay hydrated \u2014 drinking water helps keep energy levels steady.'
+    },
+    ovulation: {
+      label: 'You are in the Ovulatory Phase',
+      desc: 'The body releases an egg. This is your fertile window and typically lasts 24\u201348 hours.',
+      mood: 'Confidence and energy are at their peak. You may feel more outgoing, sociable, and vibrant.',
+      tip: 'Drink water throughout the day to support your body at this peak energy time.'
+    },
+    luteal: {
+      label: 'You are in the Luteal Phase',
+      desc: 'The body prepares for a potential pregnancy as progesterone rises. This phase lasts from ovulation until your next period.',
+      mood: 'You might feel more introspective, irritable, or tired. Focus on self-care, relaxation, and gentle movement.',
+      tip: 'Stay hydrated \u2014 water can help with bloating and keep your energy up.'
+    }
+  };
+
+  function getNextPhaseKey(current) {
+    const idx = phaseOrder.indexOf(current);
+    if (idx === -1 || idx === phaseOrder.length - 1) return phaseOrder[0];
+    return phaseOrder[idx + 1];
+  }
+
   function getCurrentPhase(periods, pred) {
     const today = formatDate(new Date());
 
     for (const p of periods) {
       if (today >= p.startDate && today <= p.endDate) {
-        return { phase: 'menstrual', desc: 'Your period is here. Rest and take it easy.' };
+        return { phase: 'menstrual', nextPhase: getNextPhaseKey('menstrual') };
       }
     }
     if (pred.rangeStart && today >= pred.rangeStart && today <= pred.rangeEnd) {
-      return { phase: 'menstrual', desc: 'Your period is here. Rest and take it easy.' };
+      return { phase: 'menstrual', nextPhase: getNextPhaseKey('menstrual') };
     }
 
     const sorted = [...periods].sort((a, b) => b.startDate.localeCompare(a.startDate));
@@ -227,15 +263,12 @@
     const avgPeriod = pred.avgPeriod || 5;
     const ovulationDay = avgCycle - 14;
 
-    if (cycleDay <= avgPeriod) {
-      return { phase: 'menstrual', desc: 'Your period is here. Rest and take it easy.' };
-    } else if (cycleDay <= ovulationDay) {
-      return { phase: 'follicular', desc: 'Energy is rising — a great time for new beginnings and social activities.' };
-    } else if (cycleDay <= ovulationDay + 2) {
-      return { phase: 'ovulation', desc: 'Fertile window. Energy and mood are at their peak.' };
-    } else {
-      return { phase: 'luteal', desc: 'Wind-down time. Focus on self-care and relaxation.' };
-    }
+    let phase;
+    if (cycleDay <= avgPeriod) phase = 'menstrual';
+    else if (cycleDay <= ovulationDay) phase = 'follicular';
+    else if (cycleDay <= ovulationDay + 2) phase = 'ovulation';
+    else phase = 'luteal';
+    return { phase, nextPhase: getNextPhaseKey(phase) };
   }
 
   // ---- Tab switching ----
@@ -250,8 +283,30 @@
 
     if (tabId === 'calendar') renderCalendar();
     if (tabId === 'log') renderLogCalendar();
-    if (tabId === 'stats') renderStats();
     if (tabId === 'history') renderList();
+  }
+
+  // ---- Phase Popup ----
+  function setupPhasePopup() {
+    document.addEventListener('click', e => {
+      if (e.target.id === 'phase-info-btn') {
+        const body = document.getElementById('phase-popup-body');
+        body.innerHTML = phaseOrder.map(key => {
+          const d = phaseData[key];
+          return `
+            <div class="phase-popup-item">
+              <div class="phase-popup-name">${d.label.replace('You are in the ', '')}</div>
+              <div class="phase-popup-desc">${d.desc}</div>
+              <div class="phase-popup-mood">${d.mood}</div>
+            </div>
+          `;
+        }).join('');
+        document.getElementById('phase-popup').classList.add('show');
+      }
+    });
+    document.getElementById('phase-popup-close').addEventListener('click', () => {
+      document.getElementById('phase-popup').classList.remove('show');
+    });
   }
 
   // ---- Calendar ----
@@ -266,6 +321,9 @@
   function renderCalendar() {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
+
+    const userName = localStorage.getItem('flowly_user_name');
+    document.getElementById('cal-heading').textContent = userName ? `Welcome back, ${userName}` : 'Your Period Calendar';
 
     document.getElementById('month-label').textContent =
       viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -321,11 +379,48 @@
     // Phase info
     const phaseEl = document.getElementById('phase-info');
     if (phase && periods.length > 0) {
-      phaseEl.className = 'phase-info ' + phase.phase;
-      phaseEl.innerHTML = `<span class="phase-label">${phase.phase.charAt(0).toUpperCase() + phase.phase.slice(1)}</span><span class="phase-desc">${phase.desc}</span>`;
+      const data = phaseData[phase.phase];
+      const nextData = phaseData[phase.nextPhase];
       phaseEl.style.display = '';
+      phaseEl.className = 'card phase-card';
+      phaseEl.innerHTML = `
+        <div class="phase-name">${data.label}</div>
+        <div class="phase-body">${data.desc}</div>
+        <div class="phase-body mood">${data.mood}</div>
+        <div class="phase-tip">${data.tip}</div>
+        <div class="phase-next">Next: ${nextData.label.replace('You are in the ', '')}</div>
+        <button class="phase-info-btn" id="phase-info-btn">Learn more about all phases</button>
+      `;
     } else {
       phaseEl.style.display = 'none';
+    }
+
+    // Calendar stats
+    const statsEl = document.getElementById('calendar-stats');
+    if (periods.length > 0) {
+      statsEl.style.display = '';
+      const today = formatDate(new Date());
+      let nextBlock = '';
+      if (pred.nextStart) {
+        const daysUntil = daysBetween(today, pred.nextStart);
+        let daysText = '';
+        if (daysUntil > 0) daysText = `(${daysUntil} day${daysUntil !== 1 ? 's' : ''} away)`;
+        else if (daysUntil === 0) daysText = '(expected today)';
+        else daysText = `(${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''} ago)`;
+        nextBlock = `
+          <div class="cal-stat-next">Next period ~ ${formatDisplay(pred.nextStart)} ${daysText}</div>
+        `;
+      }
+      statsEl.innerHTML = `
+        <div class="cal-stats-grid">
+          <div class="cal-stat"><span class="cal-stat-val">${pred.avgCycle ? pred.avgCycle + 'd' : '--'}</span><span class="cal-stat-lbl">Avg Cycle</span></div>
+          <div class="cal-stat"><span class="cal-stat-val">${pred.avgPeriod ? pred.avgPeriod + 'd' : '--'}</span><span class="cal-stat-lbl">Avg Period</span></div>
+          <div class="cal-stat"><span class="cal-stat-val">${periods.length}</span><span class="cal-stat-lbl">Logged</span></div>
+        </div>
+        ${nextBlock}
+      `;
+    } else {
+      statsEl.style.display = 'none';
     }
   }
 
@@ -392,41 +487,7 @@
   }
 
   // ---- Stats ----
-  function renderStats() {
-    const periods = getPeriods();
-    const pred = getPredictions(periods);
 
-    document.getElementById('stat-avg-cycle').textContent =
-      pred.avgCycle ? pred.avgCycle + 'd' : '--';
-    document.getElementById('stat-avg-period').textContent =
-      pred.avgPeriod ? pred.avgPeriod + 'd' : '--';
-    document.getElementById('stat-logged').textContent = periods.length;
-    document.getElementById('stat-predicted-cycle').textContent =
-      pred.avgCycle ? pred.avgCycle + 'd' : '--';
-
-    const block = document.getElementById('next-period-block');
-    if (periods.length === 0) {
-      renderEmptyStats();
-      return;
-    }
-    if (pred.nextStart) {
-      const today = new Date();
-      const daysUntil = daysBetween(formatDate(today), pred.nextStart);
-      let daysText = '';
-      if (daysUntil > 0) daysText = `(${daysUntil} day${daysUntil !== 1 ? 's' : ''} away)`;
-      else if (daysUntil === 0) daysText = '(expected today)';
-      else daysText = `(${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''} ago)`;
-
-      block.innerHTML = `
-        <div class="next-period-block">
-          <div class="value">Next period ~ ${formatDisplay(pred.nextStart)}</div>
-          <div class="sub">Expected range: ${formatDisplay(pred.rangeStart)} – ${formatDisplay(pred.rangeEnd)} ${daysText}</div>
-        </div>
-      `;
-    } else {
-      block.innerHTML = '';
-    }
-  }
 
   // ---- History list ----
   function renderList() {
@@ -764,8 +825,36 @@
   // ---- Refresh ----
   function refreshAll() {
     if (currentTab === 'calendar') renderCalendar();
-    if (currentTab === 'stats') renderStats();
     if (currentTab === 'history') renderList();
+  }
+
+  // ---- Name Prompt ----
+  function setupNamePrompt() {
+    return new Promise(resolve => {
+      const name = localStorage.getItem('flowly_user_name');
+      if (name) { resolve(); return; }
+
+      const overlay = document.getElementById('name-overlay');
+      const input = document.getElementById('name-input');
+      const heading = document.getElementById('name-heading');
+      const introSeen = localStorage.getItem('flowly_intro_seen');
+
+      heading.textContent = introSeen ? "Hey, I didn't catch your name" : "What should I call you?";
+      overlay.classList.add('show');
+      setTimeout(() => input.focus(), 300);
+
+      function saveName() {
+        const val = input.value.trim();
+        if (!val) { input.focus(); return; }
+        const capped = val.replace(/\b\w/g, c => c.toUpperCase());
+        localStorage.setItem('flowly_user_name', capped);
+        overlay.classList.remove('show');
+        resolve();
+      }
+
+      document.getElementById('name-continue').addEventListener('click', saveName);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
+    });
   }
 
   // ---- Intro ----
@@ -792,7 +881,6 @@
   const tutorialSteps = [
     { tab: 'calendar', title: 'Calendar', desc: 'View your cycle at a glance. Pink cells mark logged periods, light pink marks predictions. The dot shows today. Tap a date to jump straight to the Log tab.' },
     { tab: 'log', title: 'Log', desc: 'Record a period by picking a start and end date. Add optional notes for symptoms or mood, then hit Save.' },
-    { tab: 'stats', title: 'Statistics', desc: 'See your averages and predictions. Flowly calculates your typical cycle and period length, and estimates when your next period will start.' },
     { tab: 'history', title: 'History', desc: 'Browse all your past entries in one place. Edit or delete any period whenever you need to.' },
     { tab: 'data', title: 'Your Data', desc: 'Export your data as JSON or import a backup. Everything stays on this device — no accounts, no servers, no cloud.' },
   ];
@@ -883,11 +971,12 @@
     }
 
     dataTab.addEventListener('mousedown', startHold);
-    dataTab.addEventListener('touchstart', startHold);
+    dataTab.addEventListener('touchstart', e => { e.preventDefault(); startHold(e); });
     dataTab.addEventListener('mouseup', cancelHold);
     dataTab.addEventListener('touchend', cancelHold);
     dataTab.addEventListener('mouseleave', cancelHold);
     dataTab.addEventListener('touchcancel', cancelHold);
+    dataTab.addEventListener('contextmenu', e => e.preventDefault());
 
     document.getElementById('dev-reset-intro').addEventListener('click', () => {
       localStorage.removeItem('flowly_intro_seen');
@@ -920,18 +1009,22 @@
     document.getElementById('dev-data-count').textContent = data.length + ' entries';
   }
 
-  // ---- Empty states ----
-  function renderEmptyStats() {
-    const block = document.getElementById('next-period-block');
-    block.innerHTML = `
-      <div class="next-period-block" style="background:var(--bg);">
-        <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;">
-          Start logging periods to see predictions and statistics here.<br>
-          Flowly will calculate your average cycle length,
-          average period length, and predict your next period.
-        </div>
-      </div>
-    `;
+  // ---- Update Check ----
+  function checkForUpdate() {
+    const lastCheck = localStorage.getItem('flowly_update_check');
+    const now = Date.now();
+    if (lastCheck && now - Number(lastCheck) < 86400000) return;
+    localStorage.setItem('flowly_update_check', String(now));
+
+    fetch('https://api.github.com/repos/sova-afk/flowly/releases/latest')
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => {
+        const latest = (data.tag_name || '').replace(/^v/i, '');
+        if (!latest || latest === APP_VERSION) return;
+        document.getElementById('update-version').textContent = latest;
+        document.getElementById('update-popup').classList.add('show');
+      })
+      .catch(() => {});
   }
 
   // ---- Init ----
@@ -948,11 +1041,21 @@
     setupDataPage();
     setupDeveloper();
     setupInstall();
+    setupPhasePopup();
+    document.getElementById('update-dismiss').addEventListener('click', () => {
+      document.getElementById('update-popup').classList.remove('show');
+    });
+    document.getElementById('update-go').addEventListener('click', () => {
+      window.open('https://github.com/sova-afk/flowly/', '_blank');
+      document.getElementById('update-popup').classList.remove('show');
+    });
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
     }
+    await setupNamePrompt();
     setupIntro();
     switchTab('calendar');
+    setTimeout(checkForUpdate, 2000);
   }
 
   document.addEventListener('DOMContentLoaded', init);
