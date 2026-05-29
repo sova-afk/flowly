@@ -971,7 +971,7 @@
     }
 
     dataTab.addEventListener('mousedown', startHold);
-    dataTab.addEventListener('touchstart', e => { e.preventDefault(); startHold(e); });
+    dataTab.addEventListener('touchstart', startHold);
     dataTab.addEventListener('mouseup', cancelHold);
     dataTab.addEventListener('touchend', cancelHold);
     dataTab.addEventListener('mouseleave', cancelHold);
