@@ -177,6 +177,67 @@
     return set;
   }
 
+  function getFuturePredictionSets(periods) {
+    const pred = getPredictions(periods);
+    const loggedSet = getPeriodDateSet(periods);
+    const predPeriodSet = new Set();
+    const ovulationSet = new Set();
+    const numCycles = 3;
+    const avgCycle = pred.avgCycle || 28;
+    const avgPeriod = pred.avgPeriod || 5;
+
+    let cycleStart = pred.nextStart;
+    for (let c = 0; c < numCycles; c++) {
+      if (!cycleStart) break;
+      for (let d = 0; d < avgPeriod; d++) {
+        const date = addDays(cycleStart, d);
+        if (!loggedSet.has(date)) predPeriodSet.add(date);
+      }
+      const ovDay = addDays(cycleStart, avgCycle - 14);
+      for (let d = -1; d <= 1; d++) ovulationSet.add(addDays(ovDay, d));
+      cycleStart = addDays(cycleStart, avgCycle);
+    }
+
+    return { predPeriodSet, ovulationSet };
+  }
+
+  function getCurrentPhase(periods, pred) {
+    const today = formatDate(new Date());
+
+    for (const p of periods) {
+      if (today >= p.startDate && today <= p.endDate) {
+        return { phase: 'menstrual', desc: 'Your period is here. Rest and take it easy.' };
+      }
+    }
+    if (pred.rangeStart && today >= pred.rangeStart && today <= pred.rangeEnd) {
+      return { phase: 'menstrual', desc: 'Your period is here. Rest and take it easy.' };
+    }
+
+    const sorted = [...periods].sort((a, b) => b.startDate.localeCompare(a.startDate));
+    let lastStart = null;
+    if (sorted.length > 0 && sorted[0].startDate <= today) {
+      lastStart = sorted[0].startDate;
+    } else if (pred.nextStart && pred.nextStart <= today) {
+      lastStart = pred.nextStart;
+    }
+    if (!lastStart) return null;
+
+    const cycleDay = daysBetween(lastStart, today) + 1;
+    const avgCycle = pred.avgCycle || 28;
+    const avgPeriod = pred.avgPeriod || 5;
+    const ovulationDay = avgCycle - 14;
+
+    if (cycleDay <= avgPeriod) {
+      return { phase: 'menstrual', desc: 'Your period is here. Rest and take it easy.' };
+    } else if (cycleDay <= ovulationDay) {
+      return { phase: 'follicular', desc: 'Energy is rising — a great time for new beginnings and social activities.' };
+    } else if (cycleDay <= ovulationDay + 2) {
+      return { phase: 'ovulation', desc: 'Fertile window. Energy and mood are at their peak.' };
+    } else {
+      return { phase: 'luteal', desc: 'Wind-down time. Focus on self-care and relaxation.' };
+    }
+  }
+
   // ---- Tab switching ----
   let currentTab = 'calendar';
 
@@ -188,6 +249,7 @@
     document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
 
     if (tabId === 'calendar') renderCalendar();
+    if (tabId === 'log') renderLogCalendar();
     if (tabId === 'stats') renderStats();
     if (tabId === 'history') renderList();
   }
@@ -195,6 +257,11 @@
   // ---- Calendar ----
   let viewDate = new Date();
   let editingId = null;
+  let dragStart = null;
+  let dragEnd = null;
+  let isDragging = false;
+
+  function getGrid() { return document.getElementById('cal-grid'); }
 
   function renderCalendar() {
     const year = viewDate.getFullYear();
@@ -206,7 +273,8 @@
     const periods = getPeriods();
     const periodSet = getPeriodDateSet(periods);
     const pred = getPredictions(periods);
-    const predSet = getPredictedDateSet(pred);
+    const future = getFuturePredictionSets(periods);
+    const phase = getCurrentPhase(periods, pred);
 
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -215,7 +283,7 @@
 
     const startOffset = firstDay === 0 ? 6 : firstDay - 1;
 
-    const grid = document.getElementById('cal-grid');
+    const grid = getGrid();
     while (grid.children.length > 7) {
       grid.removeChild(grid.lastChild);
     }
@@ -240,19 +308,87 @@
       if (isOther) cls += ' other-month';
       if (dateStr === formatDate(today)) cls += ' today';
       if (periodSet.has(dateStr)) cls += ' period';
-      else if (predSet.has(dateStr)) cls += ' predicted';
+      else if (future.predPeriodSet.has(dateStr)) cls += ' predicted';
+      if (future.ovulationSet.has(dateStr)) cls += ' ovulation';
 
       const el = document.createElement('div');
       el.className = cls;
       el.textContent = day;
       el.dataset.date = dateStr;
-      el.addEventListener('click', () => {
-        document.getElementById('start-date').value = dateStr;
-        document.getElementById('end-date').value = dateStr;
-        switchTab('log');
-      });
       grid.appendChild(el);
     }
+
+    // Phase info
+    const phaseEl = document.getElementById('phase-info');
+    if (phase && periods.length > 0) {
+      phaseEl.className = 'phase-info ' + phase.phase;
+      phaseEl.innerHTML = `<span class="phase-label">${phase.phase.charAt(0).toUpperCase() + phase.phase.slice(1)}</span><span class="phase-desc">${phase.desc}</span>`;
+      phaseEl.style.display = '';
+    } else {
+      phaseEl.style.display = 'none';
+    }
+  }
+
+  function onGridPointerDown(e) {
+    const cell = e.target.closest('.day');
+    if (!cell) return;
+    e.preventDefault();
+    const dateStr = cell.dataset.date;
+    dragStart = dateStr;
+    dragEnd = dateStr;
+    isDragging = true;
+    cell.classList.add('selecting');
+    getGrid().setPointerCapture(e.pointerId);
+    getGrid().addEventListener('pointermove', onGridPointerMove);
+    getGrid().addEventListener('pointerup', onGridPointerUp);
+    getGrid().addEventListener('pointercancel', onGridPointerCancel);
+  }
+
+  function onGridPointerMove(e) {
+    if (!isDragging) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const cell = el && el.closest('.day');
+    if (!cell) return;
+    const dateStr = cell.dataset.date;
+    if (dateStr !== dragEnd) {
+      dragEnd = dateStr;
+      updateDragSelection();
+    }
+  }
+
+  function onGridPointerUp() {
+    if (!isDragging) return;
+    const start = dragStart < dragEnd ? dragStart : dragEnd;
+    const end = dragStart < dragEnd ? dragEnd : dragStart;
+    document.getElementById('start-date').value = start;
+    document.getElementById('end-date').value = end;
+    cleanupDrag();
+    switchTab('log');
+  }
+
+  function onGridPointerCancel() { cleanupDrag(); }
+
+  function updateDragSelection() {
+    getGrid().querySelectorAll('.day.selecting').forEach(el => el.classList.remove('selecting'));
+    if (!dragStart || !dragEnd) return;
+    const start = dragStart < dragEnd ? dragStart : dragEnd;
+    const end = dragStart < dragEnd ? dragEnd : dragStart;
+    getGrid().querySelectorAll('.day').forEach(el => {
+      if (el.dataset.date >= start && el.dataset.date <= end) {
+        el.classList.add('selecting');
+      }
+    });
+  }
+
+  function cleanupDrag() {
+    isDragging = false;
+    dragStart = null;
+    dragEnd = null;
+    const grid = getGrid();
+    grid.querySelectorAll('.day.selecting').forEach(el => el.classList.remove('selecting'));
+    grid.removeEventListener('pointermove', onGridPointerMove);
+    grid.removeEventListener('pointerup', onGridPointerUp);
+    grid.removeEventListener('pointercancel', onGridPointerCancel);
   }
 
   // ---- Stats ----
@@ -357,8 +493,71 @@
     return div.innerHTML;
   }
 
+  // ---- Log Calendar Preview ----
+  let logCalView = null;
+
+  function renderLogCalendar() {
+    const start = document.getElementById('start-date').value;
+    const end = document.getElementById('end-date').value;
+    const container = document.getElementById('log-cal-preview');
+
+    if (!start || !end) { container.classList.remove('show'); return; }
+
+    if (!logCalView) logCalView = parseDate(start);
+
+    const rangeStart = start;
+    const rangeEnd = end;
+    const today = formatDate(new Date());
+    const year = logCalView.getFullYear();
+    const month = logCalView.getMonth();
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+
+    let html = '<div class="log-cal-nav">';
+    html += `<button class="log-cal-arrow" id="log-cal-prev">‹</button>`;
+    html += `<span class="log-cal-month">${logCalView.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>`;
+    html += `<button class="log-cal-arrow" id="log-cal-next">›</button>`;
+    html += '</div><div class="log-cal-grid">';
+    html += '<span class="lc-day-name">M</span><span class="lc-day-name">T</span><span class="lc-day-name">W</span><span class="lc-day-name">T</span><span class="lc-day-name">F</span><span class="lc-day-name">S</span><span class="lc-day-name">S</span>';
+
+    for (let i = 0; i < startOffset; i++) {
+      html += '<span class="lc-day"></span>';
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = formatDate(new Date(year, month, d));
+      let cls = 'lc-day';
+      if (dateStr === today) cls += ' today';
+      if (dateStr >= rangeStart && dateStr <= rangeEnd) {
+        cls += ' in-range';
+        if (dateStr === rangeStart && dateStr === rangeEnd) cls += ' range-single';
+        else if (dateStr === rangeStart) cls += ' range-start';
+        else if (dateStr === rangeEnd) cls += ' range-end';
+      }
+      html += `<span class="${cls}">${d}</span>`;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+    container.classList.add('show');
+
+    document.getElementById('log-cal-prev').addEventListener('click', () => {
+      logCalView.setMonth(logCalView.getMonth() - 1);
+      renderLogCalendar();
+    });
+    document.getElementById('log-cal-next').addEventListener('click', () => {
+      logCalView.setMonth(logCalView.getMonth() + 1);
+      renderLogCalendar();
+    });
+  }
+
   // ---- Form ----
   function setupForm() {
+    document.getElementById('start-date').addEventListener('change', renderLogCalendar);
+    document.getElementById('end-date').addEventListener('change', renderLogCalendar);
+
     const form = document.getElementById('period-form');
     form.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -386,6 +585,7 @@
       document.getElementById('start-date').value = today;
       document.getElementById('end-date').value = today;
       refreshAll();
+      renderLogCalendar();
     });
 
     document.getElementById('cancel-edit').addEventListener('click', cancelEdit);
@@ -393,6 +593,7 @@
     const today = formatDate(new Date());
     document.getElementById('start-date').value = today;
     document.getElementById('end-date').value = today;
+    renderLogCalendar();
   }
 
   function cancelEdit() {
@@ -403,6 +604,7 @@
     const today = formatDate(new Date());
     document.getElementById('start-date').value = today;
     document.getElementById('end-date').value = today;
+    renderLogCalendar();
   }
 
   // ---- Calendar nav ----
@@ -740,6 +942,7 @@
       btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
+    getGrid().addEventListener('pointerdown', onGridPointerDown);
     setupNav();
     setupForm();
     setupDataPage();

@@ -1,4 +1,4 @@
-const CACHE = 'flowly-v1';
+const CACHE = 'flowly-v2';
 const FILES = ['index.html', 'styles.css', 'app.js', 'manifest.json'];
 
 self.addEventListener('install', (e) => {

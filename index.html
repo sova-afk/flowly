@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Flowly</title>
 
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
 <div class="app">
@@ -32,8 +32,11 @@
       <span class="sep"></span>
       <span><span class="dot" style="background:var(--rose-pred);"></span> Predicted</span>
       <span class="sep"></span>
+      <span><span class="dot" style="background:var(--ovulation);"></span> Ovulation</span>
+      <span class="sep"></span>
       <span><span class="dot" style="background:var(--primary-light);border:1px solid var(--border);"></span> Today</span>
     </div>
+    <div id="phase-info"></div>
   </div>
 
   <!-- Log -->
@@ -54,6 +57,7 @@
             <input type="date" id="end-date" required>
           </div>
         </div>
+        <div id="log-cal-preview"></div>
         <div class="form-group" style="margin-bottom:12px;">
           <label for="notes">Notes (optional)</label>
           <textarea id="notes" placeholder="Symptoms, mood, anything..."></textarea>

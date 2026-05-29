@@ -1,17 +1,18 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #FAF8F5;
+  --bg: #FFF8F6;
   --surface: #FFFFFF;
   --text: #2D2D2D;
   --text-muted: #8A8A8A;
-  --primary: #5B7B6F;
-  --primary-light: #E8F0EC;
-  --rose: #E8A0A0;
-  --rose-light: #FDF0F0;
+  --primary: #D4A0A0;
+  --primary-light: #FDF0F0;
+  --rose: #C98585;
+  --rose-light: #FCECEC;
   --rose-pred: #F5E0E0;
-  --border: #E8E4E0;
+  --ovulation: #E8C8E8;
+  --border: #E8D8D8;
   --radius: 12px;
-  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow: 0 2px 8px rgba(180,120,120,0.08);
   --tab-height: 60px;
 }
 html { font-size: 16px; }
@@ -25,7 +26,10 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
 }
+.app { max-width: 480px; width: 100%; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .app { max-width: 480px; width: 100%; }
 header { margin-bottom: 20px; }
 h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
@@ -110,6 +114,7 @@ h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
 .cal-grid {
   display: grid; grid-template-columns: repeat(7, 1fr);
   gap: 2px; text-align: center;
+  touch-action: none;
 }
 .cal-grid .day-name {
   font-size: 0.7rem; font-weight: 600; color: var(--text-muted);
@@ -127,8 +132,10 @@ h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
   transform: translateX(-50%);
   width: 4px; height: 4px; border-radius: 50%; background: var(--primary);
 }
-.cal-grid .day.period { background: var(--rose-light); color: #C06060; font-weight: 600; }
-.cal-grid .day.predicted { background: var(--rose-pred); color: #C08080; }
+.cal-grid .day.period { background: var(--rose-light); color: var(--rose); font-weight: 600; }
+.cal-grid .day.predicted { background: var(--rose-pred); color: var(--rose); opacity: 0.75; }
+.cal-grid .day.ovulation { background: var(--ovulation); color: #9B6B9B; font-weight: 600; }
+.cal-grid .day.selecting { background: var(--primary); color: #fff; font-weight: 700; }
 .cal-legend {
   text-align: center; color: var(--text-muted); font-size: 0.72rem;
   padding: 6px 0 0;
@@ -142,8 +149,48 @@ h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
 }
 .cal-legend .sep { margin: 0 10px; }
 
+/* ---- Phase Info ---- */
+#phase-info { margin-top: 10px; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; font-size: 0.78rem; line-height: 1.5; }
+#phase-info.menstrual { background: var(--rose-light); color: var(--rose); }
+#phase-info.follicular { background: var(--primary-light); color: var(--primary); }
+#phase-info.ovulation { background: var(--ovulation); color: #9B6B9B; }
+#phase-info.luteal { background: #F5F0F8; color: #8B7B9B; }
+.phase-label { font-weight: 700; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; }
+.phase-desc { color: inherit; }
+
+/* ---- Log Calendar Preview ---- */
+#log-cal-preview {
+  margin-bottom: 12px;
+  padding: 10px; background: var(--bg);
+  border-radius: 8px; border: 1px solid var(--border);
+  display: none;
+}
+#log-cal-preview.show { display: block; }
+.log-cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 1px; text-align: center;
+}
+.log-cal-grid .lc-day-name {
+  font-size: 0.6rem; font-weight: 600; color: var(--text-muted);
+  padding: 3px 0; text-transform: uppercase;
+}
+.log-cal-grid .lc-day {
+  padding: 4px 0; font-size: 0.72rem; border-radius: 4px;
+  color: var(--text-muted);
+}
+.log-cal-grid .lc-day.in-range { background: var(--rose-light); color: var(--rose); font-weight: 600; }
+.log-cal-grid .lc-day.range-start { border-radius: 4px 0 0 4px; }
+.log-cal-grid .lc-day.range-end { border-radius: 0 4px 4px 0; }
+.log-cal-grid .lc-day.range-single { border-radius: 4px; }
+.log-cal-grid .lc-day.today { font-weight: 700; }
+.log-cal-month { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); text-align: center; margin-bottom: 6px; }
+.log-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.log-cal-arrow { background: none; border: none; font-size: 1.1rem; color: var(--primary); cursor: pointer; padding: 2px 8px; line-height: 1; }
+.log-cal-arrow:active { opacity: 0.6; }
+
 /* ---- Form ---- */
 .form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.form-row .form-group { min-width: 0; }
 .form-group { flex: 1; }
 .form-group label {
   display: block; font-size: 0.75rem; font-weight: 600;
@@ -206,7 +253,7 @@ h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.period-entry .del-btn:hover { color: #C06060; }
+.period-entry .del-btn:hover { color: var(--rose); }
 
 /* ---- Data ---- */
 .data-section { margin-bottom: 20px; }
@@ -233,7 +280,7 @@ h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
   flex-shrink: 0;
 }
 .data-btn:hover { border-color: var(--primary); background: var(--primary-light); }
-.data-btn.import { color: #C06060; border-color: var(--rose); }
+.data-btn.import { color: var(--rose); border-color: var(--rose); }
 .data-btn.import:hover { background: var(--rose-light); }
 .data-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .hidden-input { display: none; }
@@ -300,7 +347,7 @@ textarea.import-area:focus { outline: none; border-color: var(--primary); }
 /* ---- Tutorial ---- */
 .tutorial {
   position: fixed; inset: 0; z-index: 190;
-  background: rgba(45,45,45,0.6);
+  background: rgba(180,120,120,0.45);
   display: flex; align-items: flex-end;
   padding: 20px;
   opacity: 0; pointer-events: none;
@@ -375,7 +422,7 @@ textarea.import-area:focus { outline: none; border-color: var(--primary); }
   font-size: 0.75rem; color: var(--text);
 }
 .dev-btn-sm:hover { border-color: var(--primary); background: var(--primary-light); }
-.dev-btn-sm.danger { color: #C06060; border-color: var(--rose); }
+.dev-btn-sm.danger { color: var(--rose); border-color: var(--rose); }
 .dev-btn-sm.danger:hover { background: var(--rose-light); }
 .dev-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -391,10 +438,10 @@ textarea.import-area:focus { outline: none; border-color: var(--primary); }
   width: 100%; padding: 12px 18px; border: 1px solid var(--rose);
   border-radius: 8px; background: var(--rose-light); cursor: pointer;
   font-family: inherit; font-size: 0.82rem; font-weight: 600;
-  color: #C06060; transition: opacity 0.15s;
+  color: var(--rose); transition: opacity 0.15s;
 }
 .dev-btn-full:hover { opacity: 0.8; }
-.dev-btn-full.danger { color: #C06060; }
+.dev-btn-full.danger { color: var(--rose); }
 
 /* ---- Toast ---- */
 .toast {
@@ -407,8 +454,10 @@ textarea.import-area:focus { outline: none; border-color: var(--primary); }
 }
 .toast.show { opacity: 1; }
 
+@media (max-width: 480px) {
+  .form-row { flex-direction: column; gap: 8px; }
+}
 @media (max-width: 400px) {
   body { padding: 12px 12px calc(var(--tab-height) + 12px); }
   .card { padding: 14px; }
-  .form-row { flex-direction: column; gap: 8px; }
 }
