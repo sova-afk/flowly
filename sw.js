@@ -1,5 +1,5 @@
-const CACHE = 'flowly-v2';
-const FILES = ['index.html', 'styles.css', 'app.js', 'manifest.json'];
+const CACHE = 'flowly-v3';
+const FILES = ['index.html', 'styles.css', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
