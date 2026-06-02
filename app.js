@@ -3,7 +3,7 @@
 
   const DB_NAME = 'flowly';
   const STORE_NAME = 'periods';
-  const APP_VERSION = '2.0.0';
+  let APP_VERSION = '2.0.0';
   let dbCache = [];
   let dbReady = false;
 
@@ -1834,6 +1834,12 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
     }
+    try {
+      const res = await fetch('version.json?v=' + Date.now());
+      const data = await res.json();
+      if (data.version) APP_VERSION = data.version;
+    } catch {}
+
     setupIntro();
     switchTab('calendar');
     setTimeout(checkForUpdate, 2000);
