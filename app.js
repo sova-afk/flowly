@@ -404,13 +404,6 @@
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
 
-    const userName = localStorage.getItem('flowly_user_name');
-    const healthMode = localStorage.getItem('flowly_health_mode') || '';
-    let heading = userName ? `Welcome back, ${userName}` : 'Your Period Calendar';
-    if (healthMode === 'pregnancy') heading += ' \u{1F476}';
-    else if (healthMode === 'postpartum') heading += ' \u{1F37C}';
-    document.getElementById('cal-heading').textContent = heading;
-
     document.getElementById('month-label').textContent =
       viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
@@ -633,11 +626,19 @@
 
     container.querySelectorAll('[data-del-id]').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (confirm('Delete this period entry?')) {
-          deletePeriod(btn.dataset.delId);
+        const all = getPeriods();
+        const deleted = all.find(p => p.id === btn.dataset.delId);
+        if (!deleted) return;
+        deletePeriod(btn.dataset.delId);
+        refreshAll();
+        showToast('Deleted', 'Undo', () => {
+          const current = getPeriods();
+          current.push(deleted);
+          current.sort((a, b) => b.startDate.localeCompare(a.startDate));
+          savePeriods(current);
           refreshAll();
-          showToast('Period deleted');
-        }
+          showToast('Restored');
+        });
       });
     });
 
@@ -1523,7 +1524,6 @@
   let installPromptConsumed = false;
 
   function setupInstall() {
-    const section = document.getElementById('install-section');
     const btn = document.getElementById('install-btn');
     const btnText = document.getElementById('install-btn-text');
     const iosHint = document.getElementById('ios-install-hint');
@@ -1534,39 +1534,34 @@
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
-    // Already installed as PWA
     if (isStandalone) {
       desc.textContent = 'Flowly is already installed on your device.';
       btn.style.display = 'none';
       return;
     }
 
-    // iOS — always show instructions
-    if (isIOS) {
-      btn.style.display = 'none';
+    btnText.textContent = 'Install';
+
+    function showiOSInstructions() {
       iosHint.style.display = '';
-      return;
     }
 
-    // Listen for the beforeinstallprompt event
+    function showAndroidInstructions() {
+      androidHint.style.display = '';
+    }
+
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       installPrompt = e;
       installPromptConsumed = false;
-      btn.style.display = '';
-      androidHint.style.display = 'none';
-      btnText.textContent = 'Install App';
       btn.disabled = false;
     });
 
-    function showAndroidInstructions() {
-      btnText.textContent = 'Installation Instructions';
-      androidHint.style.display = '';
-      desc.textContent = 'Add Flowly to your home screen for a faster, offline-ready experience.';
-    }
-
     btn.addEventListener('click', async () => {
-      // If we have a live beforeinstallprompt, use it
+      if (isIOS) {
+        showiOSInstructions();
+        return;
+      }
       if (installPrompt && !installPromptConsumed) {
         installPrompt.prompt();
         const result = await installPrompt.userChoice;
@@ -1581,12 +1576,10 @@
           return;
         }
       }
-      // Prompt consumed, dismissed, or never fired — show instructions
       installPromptConsumed = true;
       showAndroidInstructions();
     });
 
-    // Some browsers fire beforeinstallprompt late; check periodically
     let checkCount = 0;
     const checkInterval = setInterval(() => {
       checkCount++;
@@ -1594,15 +1587,11 @@
         clearInterval(checkInterval);
         return;
       }
-      if (checkCount >= 10) { // ~10 seconds
+      if (checkCount >= 10) {
         clearInterval(checkInterval);
-        if (!installPrompt || installPromptConsumed) {
-          showAndroidInstructions();
-        }
       }
     }, 1000);
 
-    // Also listen for the app installed event
     window.addEventListener('appinstalled', () => {
       successMsg.style.display = '';
       btn.style.display = 'none';
@@ -1615,47 +1604,28 @@
 
   // ---- Toast ----
   let toastTimer = null;
-  function showToast(msg) {
+  function showToast(msg, actionLabel, actionFn) {
     const el = document.getElementById('toast');
-    el.textContent = msg;
+    const msgEl = document.getElementById('toast-msg');
+    const actionEl = document.getElementById('toast-action');
+    msgEl.textContent = msg;
+    if (actionLabel && actionFn) {
+      actionEl.textContent = actionLabel;
+      actionEl.style.display = '';
+      actionEl.onclick = () => { actionFn(); el.classList.remove('show'); };
+    } else {
+      actionEl.style.display = 'none';
+      actionEl.onclick = null;
+    }
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+    toastTimer = setTimeout(() => el.classList.remove('show'), actionLabel ? 5000 : 2500);
   }
 
   // ---- Refresh ----
   function refreshAll() {
     if (currentTab === 'calendar') renderCalendar();
     if (currentTab === 'history') renderList();
-  }
-
-  // ---- Name Prompt ----
-  function setupNamePrompt() {
-    return new Promise(resolve => {
-      const name = localStorage.getItem('flowly_user_name');
-      if (name) { resolve(); return; }
-
-      const overlay = document.getElementById('name-overlay');
-      const input = document.getElementById('name-input');
-      const heading = document.getElementById('name-heading');
-      const introSeen = localStorage.getItem('flowly_intro_seen');
-
-      heading.textContent = introSeen ? "Hey, I didn't catch your name" : "What should I call you?";
-      overlay.classList.add('show');
-      setTimeout(() => input.focus(), 300);
-
-      function saveName() {
-        const val = input.value.trim();
-        if (!val) { input.focus(); return; }
-        const capped = val.replace(/\b\w/g, c => c.toUpperCase());
-        localStorage.setItem('flowly_user_name', capped);
-        overlay.classList.remove('show');
-        resolve();
-      }
-
-      document.getElementById('name-continue').addEventListener('click', saveName);
-      input.addEventListener('keydown', e => { if (e.key === 'Enter') saveName(); });
-    });
   }
 
   // ---- Intro ----
@@ -1864,7 +1834,6 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
     }
-    await setupNamePrompt();
     setupIntro();
     switchTab('calendar');
     setTimeout(checkForUpdate, 2000);
